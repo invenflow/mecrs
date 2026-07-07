@@ -1,0 +1,37 @@
+name: scrape
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 */6 * * *"
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATA_GOV_RESOURCE_ID: ${{ secrets.DATA_GOV_RESOURCE_ID }}
+        run: npm run scrape
+
+      - name: Run email alerts
+        if: success()
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          SCRAPER_CRON_SECRET: ${{ secrets.SCRAPER_CRON_SECRET }}
+        run: |
+          curl -fsS -X POST "${APP_URL}/api/alerts/run" \
+            -H "Authorization: Bearer ${SCRAPER_CRON_SECRET}"

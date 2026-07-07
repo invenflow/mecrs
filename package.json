@@ -1,0 +1,15 @@
+{
+  "name": "michrazim",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build:web",
+    "dev:web": "npm run dev --workspace apps/web",
+    "build:web": "npm run build --workspace apps/web",
+    "lint:web": "npm run lint --workspace apps/web",
+    "scrape": "npm run scrape --workspace apps/scraper"
+  }
+}
+

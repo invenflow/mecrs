@@ -1,0 +1,27 @@
+# dependencies
+node_modules/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+apps/*/.env
+apps/*/.env.*
+!apps/*/.env.example
+
+# next.js
+apps/web/.next/
+apps/web/out/
+
+# build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# netlify
+.netlify/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
