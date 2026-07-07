@@ -1,11 +1,12 @@
 [build]
-  command = "npm run build:web"
+  command = "npm ci --include=optional && npm run build:web"
   publish = "apps/web/.next"
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- apps/web package.json package-lock.json netlify.toml"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- apps/web package.json package-lock.json netlify.toml .npmrc"
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--include=optional"
+  NPM_CONFIG_PRODUCTION = "false"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
