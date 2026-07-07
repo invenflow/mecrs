@@ -1,12 +1,10 @@
 [build]
-  install = "npm ci --include=optional"
-  command = "npm run build --workspace=web"
+  command = "npm run build:web"
   publish = "apps/web/.next"
 
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--include=optional"
-  NPM_CONFIG_PRODUCTION = "false"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
