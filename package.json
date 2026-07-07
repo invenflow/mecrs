@@ -5,6 +5,7 @@
     "apps/*"
   ],
   "scripts": {
+    "postinstall": "node apps/web/scripts/ensure-lightningcss-native.cjs",
     "build": "npm run build:web",
     "dev:web": "npm run dev --workspace apps/web",
     "build:web": "npm run build --workspace apps/web",
@@ -12,6 +13,7 @@
     "scrape": "npm run scrape --workspace apps/scraper"
   },
   "optionalDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "4.3.2",
     "lightningcss-linux-x64-gnu": "1.32.0"
   }
 }
