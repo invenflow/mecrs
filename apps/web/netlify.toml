@@ -1,6 +1,6 @@
 [build]
   install = "npm ci --include=optional"
-  command = "npm run build:web"
+  command = "npm run build --workspace=web"
   publish = "apps/web/.next"
 
 [build.environment]
