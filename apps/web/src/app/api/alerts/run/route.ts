@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createSupabaseServerAdmin } from '@/lib/supabase/server';
+import { submittableDeadlineFilter } from '@/lib/tenders';
 
 function containsAny(text: string, keywords: string[]) {
   const t = text.toLowerCase();
@@ -48,6 +49,7 @@ export async function POST(req: Request) {
       .from('tenders')
       .select('id,title,description,publisher,source,submission_deadline')
       .gte('first_seen_at', since)
+      .or(submittableDeadlineFilter())
       .order('submission_deadline', { ascending: true, nullsFirst: false })
       .limit(200);
 

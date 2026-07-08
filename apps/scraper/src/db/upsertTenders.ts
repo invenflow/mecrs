@@ -1,11 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { NormalizedTender } from '../types/tender';
+import { filterSubmittableTenders } from '../lib/submittable';
 
 export async function upsertTenders(
   supabase: SupabaseClient,
   tenders: NormalizedTender[],
 ) {
-  if (tenders.length === 0) return { upserted: 0 };
+  const submittable = filterSubmittableTenders(tenders);
+  const skippedExpired = tenders.length - submittable.length;
+  if (submittable.length === 0) return { upserted: 0, skippedExpired };
+
+  tenders = submittable;
 
   const now = new Date().toISOString();
   // Deduplicate within the same run by source_url to avoid "ON CONFLICT ... a second time"
@@ -50,6 +55,6 @@ export async function upsertTenders(
     if (error) throw error;
     upserted += chunk.length;
   }
-  return { upserted };
+  return { upserted, skippedExpired };
 }
 

@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from '@/lib/supabase/ssr';
+import { submittableDeadlineFilter } from '@/lib/tenders';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,8 @@ export default async function DashboardPage({
     const escaped = q.replaceAll('%', '\\%').replaceAll('_', '\\_');
     query = query.or(`title.ilike.%${escaped}%,description.ilike.%${escaped}%`);
   }
+
+  query = query.or(submittableDeadlineFilter());
 
   const { data, error, count } = await query
     // Default: show newest first. Deadline-based sorting can hide many sources when deadlines are missing.

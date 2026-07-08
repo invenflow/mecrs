@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from '@/lib/supabase/ssr';
+import { submittableDeadlineFilter } from '@/lib/tenders';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,7 @@ export default async function TenderDetailPage({
     .from('tenders')
     .select('*')
     .eq('id', id)
+    .or(submittableDeadlineFilter())
     .maybeSingle();
 
   if (error) {

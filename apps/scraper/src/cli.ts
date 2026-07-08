@@ -11,6 +11,7 @@ import { iaaAdapter } from './adapters/soe/iaa';
 import { maccabiAdapter } from './adapters/health/maccabi';
 import { withContentHash } from './normalizer';
 import { upsertTenders } from './db/upsertTenders';
+import { deleteExpiredTenders } from './db/deleteExpiredTenders';
 
 async function main() {
   const supabase = createSupabaseAdminClient();
@@ -37,6 +38,13 @@ async function main() {
     } catch (err) {
       console.error(`[${adapter.source}] failed`, err);
     }
+  }
+
+  try {
+    const cleanup = await deleteExpiredTenders(supabase);
+    console.log(JSON.stringify({ action: 'delete_expired', ...cleanup }, null, 2));
+  } catch (err) {
+    console.error('[delete_expired] failed', err);
   }
 }
 
