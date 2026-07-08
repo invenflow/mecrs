@@ -4,6 +4,9 @@
   "workspaces": [
     "apps/*"
   ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "postinstall": "node apps/web/scripts/ensure-lightningcss-native.cjs",
     "build": "npm run build:web",
