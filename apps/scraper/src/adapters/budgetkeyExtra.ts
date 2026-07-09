@@ -62,7 +62,7 @@ function toTender(source: string, doc: Record<string, any>): NormalizedTender | 
   };
 }
 
-async function fetchAllFromQueryApi(table: 'procurement_tenders' | 'muni_tenders') {
+async function fetchAllFromQueryApi(table: string) {
   const results: Record<string, any>[] = [];
   const pageSize = 1000;
   const maxResults = Number(process.env.BUDGETKEY_MAX_RESULTS ?? '20000') || 20000;
@@ -75,11 +75,14 @@ async function fetchAllFromQueryApi(table: 'procurement_tenders' | 'muni_tenders
     const res = await request(url, {
       headers: { 'user-agent': 'InvenFlow-Michrazim/0.1 (contact: admin)' },
     });
+    const bodyText = await res.body.text();
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw new Error(`BudgetKey query ${table} HTTP ${res.statusCode}`);
+      // BudgetKey query API returns UndefinedTable in body when table doesn't exist.
+      if (bodyText.includes('UndefinedTable')) return [];
+      throw new Error(`BudgetKey query ${table} HTTP ${res.statusCode}: ${bodyText.slice(0, 200)}`);
     }
 
-    const json = (await res.body.json()) as QueryResponse;
+    const json = JSON.parse(bodyText) as QueryResponse;
     const batch = Array.isArray(json.rows) ? json.rows : [];
     results.push(...batch);
 
@@ -90,26 +93,26 @@ async function fetchAllFromQueryApi(table: 'procurement_tenders' | 'muni_tenders
   return results;
 }
 
-export function budgetKeyAdapter(): TenderAdapter {
+function budgetKeyTableAdapter(source: string, table: string): TenderAdapter {
   return {
-    source: 'budgetkey',
+    source,
     async fetch() {
-      const [gov, muni] = await Promise.all([
-        fetchAllFromQueryApi('procurement_tenders'),
-        fetchAllFromQueryApi('muni_tenders'),
-      ]);
-
+      const rows = await fetchAllFromQueryApi(table);
       const tenders: NormalizedTender[] = [];
-      for (const doc of gov) {
-        const t = toTender('budgetkey', doc);
-        if (t) tenders.push(t);
-      }
-      for (const doc of muni) {
-        const t = toTender('budgetkey_muni', doc);
+      for (const doc of rows) {
+        const t = toTender(source, doc);
         if (t) tenders.push(t);
       }
       return { tenders };
     },
   };
+}
+
+export function budgetKeyMofAdapter(): TenderAdapter {
+  return budgetKeyTableAdapter('budgetkey_mof', 'mof_tenders');
+}
+
+export function budgetKeyMrGovTableAdapter(): TenderAdapter {
+  return budgetKeyTableAdapter('budgetkey_mr_gov', 'tenders_mr_gov');
 }
 

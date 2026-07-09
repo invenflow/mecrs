@@ -1,7 +1,7 @@
-import { request } from 'undici';
 import * as cheerio from 'cheerio';
 import type { TenderAdapter } from '../base';
 import type { NormalizedTender } from '../../types/tender';
+import { fetchHtml, joinDescriptionParts, parseHebrewDate } from '../../lib/htmlDetail';
 
 function absoluteUrl(href: string) {
   if (href.startsWith('http://') || href.startsWith('https://')) return href;
@@ -15,37 +15,49 @@ export function iaaAdapter(): TenderAdapter {
     async fetch() {
       const listUrl =
         'https://www.iaa.gov.il/tenders-and-contracts/active-tenders/';
-      const res = await request(listUrl, {
-        headers: { 'user-agent': 'InvenFlow-Michrazim/0.1 (contact: admin)' },
-      });
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        throw new Error(`IAA HTTP ${res.statusCode}`);
-      }
-      const html = await res.body.text();
+      const html = await fetchHtml(listUrl);
       const $ = cheerio.load(html);
 
       const tenders: NormalizedTender[] = [];
-      const links = $('a')
-        .map((_i, el) => String($(el).attr('href') ?? ''))
-        .get()
-        .filter((h) => h.includes('/tenders') || h.includes('/tender') || h.includes('tenders'));
+      const rows = $('table tr').toArray();
+      for (const row of rows) {
+        const $row = $(row);
+        const linkEl = $row.find('a[href]').first();
+        const href = String(linkEl.attr('href') ?? '').trim();
+        if (!href) continue;
 
-      const uniq = Array.from(new Set(links)).slice(0, 150);
-      for (const href of uniq) {
         const url = absoluteUrl(href);
-        const title = $('a[href="' + href.replace(/"/g, '\\"') + '"]')
-          .first()
-          .text()
-          .trim();
+        const rowText = $row.text().replace(/\s+/g, ' ').trim();
+        const title = linkEl.text().trim() || rowText.split('|')[0]?.trim() || 'מכרז רשות שדות התעופה';
+
+        const pub = (() => {
+          const m = rowText.match(/תאריך\s+פרסום\s+([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/);
+          return m ? parseHebrewDate(m[1]) : undefined;
+        })();
+        const deadline = (() => {
+          const m = rowText.match(/תאריך\s+אחרון\s+להגשה\s+([0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4})/);
+          return m ? parseHebrewDate(m[1]) : undefined;
+        })();
+
+        const cells = $row
+          .find('td')
+          .map((_i, el) => $(el).text().replace(/\s+/g, ' ').trim())
+          .get()
+          .filter(Boolean);
+        const extra = cells.filter((c) => c !== title && !/תאריך|הגשה|פרסום/i.test(c)).slice(0, 2);
+
         tenders.push({
           externalId: url,
           source: 'soe_iaa',
           sourceUrl: url,
-          title: title || 'מכרז רשות שדות התעופה',
+          title,
+          description: joinDescriptionParts(extra),
           publisher: 'רשות שדות התעופה',
           tenderType: 'soe',
           status: 'open',
-          rawData: { href },
+          publicationDate: pub,
+          submissionDeadline: deadline,
+          rawData: { href, listUrl, rowText },
         });
       }
 

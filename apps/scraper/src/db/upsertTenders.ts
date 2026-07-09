@@ -1,14 +1,23 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { NormalizedTender } from '../types/tender';
 import { filterSubmittableTenders } from '../lib/submittable';
+import { filterByMinPublicationDate } from '../lib/publicationDate';
 
 export async function upsertTenders(
   supabase: SupabaseClient,
   tenders: NormalizedTender[],
 ) {
-  const submittable = filterSubmittableTenders(tenders);
-  const skippedExpired = tenders.length - submittable.length;
-  if (submittable.length === 0) return { upserted: 0, skippedExpired };
+  const byDate = filterByMinPublicationDate(tenders);
+  const submittable = filterSubmittableTenders(byDate.kept);
+  const skippedExpired = byDate.kept.length - submittable.length;
+  if (submittable.length === 0) {
+    return {
+      upserted: 0,
+      skippedExpired,
+      skippedOld: byDate.skippedOld,
+      skippedNoDate: byDate.skippedNoDate,
+    };
+  }
 
   tenders = submittable;
 
@@ -55,6 +64,11 @@ export async function upsertTenders(
     if (error) throw error;
     upserted += chunk.length;
   }
-  return { upserted, skippedExpired };
+  return {
+    upserted,
+    skippedExpired,
+    skippedOld: byDate.skippedOld,
+    skippedNoDate: byDate.skippedNoDate,
+  };
 }
 

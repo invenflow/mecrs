@@ -1,7 +1,9 @@
 import { request } from 'undici';
 import * as cheerio from 'cheerio';
+import pLimit from 'p-limit';
 import type { TenderAdapter } from './base';
 import type { NormalizedTender } from '../types/tender';
+import { fetchHtml, guessDatesFromHtml } from '../lib/htmlDetail';
 
 type AnyRecord = Record<string, any>;
 
@@ -19,7 +21,6 @@ function asIsoDateTime(value: string | undefined) {
 }
 
 // Minimal, resilient scraper for mr.gov.il storefront search results.
-// We start with list pages only; detail pages can be added later per tender.
 export function mrGovAdapter(): TenderAdapter {
   return {
     source: 'mr_gov',
@@ -46,28 +47,43 @@ export function mrGovAdapter(): TenderAdapter {
 
       const uniq = Array.from(new Set(links)).slice(0, 200); // safety cap
 
-      for (const href of uniq) {
-        const url = absoluteUrl(href);
-        const idMatch = url.match(/\/p\/([^/?#]+)/);
-        const externalId = idMatch?.[1] ?? url;
+      const limit = pLimit(5);
+      const items = await Promise.all(
+        uniq.map((href) =>
+          limit(async () => {
+            const url = absoluteUrl(href);
+            const idMatch = url.match(/\/p\/([^/?#]+)/);
+            const externalId = idMatch?.[1] ?? url;
 
-        // Best-effort title from link text
-        const title = $('a[href="' + href.replace(/"/g, '\\"') + '"]')
-          .first()
-          .text()
-          .trim();
+            // Best-effort title from link text
+            const title = $('a[href="' + href.replace(/"/g, '\\"') + '"]')
+              .first()
+              .text()
+              .trim();
 
-        tenders.push({
-          externalId,
-          source: 'mr_gov',
-          sourceUrl: url,
-          title: title || `מכרז ${externalId}`,
-          publisher: 'מינהל הרכש הממשלתי',
-          tenderType: 'public',
-          status: 'open',
-          publicationDate: asIsoDateTime(undefined),
-          rawData: { href },
-        });
+            const detailHtml = await fetchHtml(url);
+            const { publicationDate, submissionDeadline } = guessDatesFromHtml(detailHtml);
+
+            const tender: NormalizedTender = {
+              externalId,
+              source: 'mr_gov',
+              sourceUrl: url,
+              title: title || `מכרז ${externalId}`,
+              publisher: 'מינהל הרכש הממשלתי',
+              tenderType: 'public',
+              status: 'open',
+              publicationDate: publicationDate ?? asIsoDateTime(undefined),
+              submissionDeadline,
+              rawData: { href },
+            };
+
+            return tender;
+          }),
+        ),
+      );
+
+      for (const t of items) {
+        tenders.push(t);
       }
 
       return { tenders };
